@@ -6,6 +6,10 @@ from datasets import load_dataset
 from mlx.utils import tree_flatten, tree_map
 import random
 
+
+import math
+
+
 # ============================================================
 # 1. LoRA Layer
 # ============================================================
@@ -40,7 +44,7 @@ MODEL_NAME = "microsoft/Phi-3.5-mini-instruct"
 LR = 1e-4
 BATCH_SIZE = 4
 MAX_LENGTH = 256
-NUM_STEPS = 100
+NUM_STEPS = 300
 LORA_RANK = 8
 
 # ============================================================
@@ -85,7 +89,7 @@ def get_batch(step):
     return x, y
 
 # ============================================================
-# 6. Loss and grad clipping
+# 6. Loss and grad clipping and lr scheduler 
 # ============================================================
 def loss_fn(model, x, labels):
     logits = model(x)
@@ -108,6 +112,13 @@ def clip_grad_norm(grads, max_norm=1.0):
         lambda g: g * scale if isinstance(g, mx.array) else g,
         grads
     )
+def get_lr(step, num_steps, max_lr=1e-4, min_lr=1e-6, warmup_steps=20):
+    # Warmup
+    if step < warmup_steps:
+        return max_lr * (step + 1) / warmup_steps
+    # Cosine decay
+    progress = (step - warmup_steps) / (num_steps - warmup_steps)
+    return min_lr + 0.5 * (max_lr - min_lr) * (1 + math.cos(math.pi * progress))
 
 # ============================================================
 # 7. Training loop
@@ -127,13 +138,17 @@ print("lora_b before (should be ~0):")
 print(lora_b_before[:2, :4])
 
 for step in range(NUM_STEPS):
+    lr = get_lr(step, NUM_STEPS)
+    optimizer.learning_rate = lr
+    
     x, y = get_batch(step)
     loss, grads = loss_and_grad(model, x, y)
     grads = clip_grad_norm(grads, max_norm=1.0)
     optimizer.update(model, grads)
     mx.eval(model.parameters(), optimizer.state)
+    
     if (step + 1) % 10 == 0:
-        print(f"Step {step + 1}: loss = {loss.item():.4f}")
+        print(f"Step {step+1}: loss = {loss.item():.4f}, lr = {lr:.2e}")
 
 # Record after training
 orig_after = mx.array(
