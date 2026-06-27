@@ -1,4 +1,12 @@
-# LLaMA LoRA Fine-tuning: Learning Rate Sensitivity Experiments
+# LLM Fine-tuning Experiments
+
+Systematic exploration of LoRA fine-tuning behavior, implemented from scratch using MLX on Apple Silicon.
+
+## What's in here
+- **Learning rate sensitivity**: 6 experiments from 1e-6 to 1e-1, with full loss curves
+- **Custom training loop**: LoRA implementation from scratch, including prompt masking, 
+  gradient clipping, shuffle batching, and lr scheduler
+- **Implementation notes**: what I found vs what the library abstracts away
 
 ## Overview
 Fine-tuned Phi-3.5-mini-instruct on Alpaca dataset using LoRA, 
